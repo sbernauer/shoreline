@@ -28,6 +28,9 @@
 #ifdef FEATURE_STATISTICS
 #include "statistics.h"
 #endif
+#ifdef FEATURE_PINGXELFLUT
+#include "network_pingxelflut.h"
+#endif
 
 
 #define PORT_DEFAULT "1234"
@@ -42,6 +45,10 @@
 #define MAX_FRONTENDS 16
 
 #define REPO_URL "https://github.com/TobleMiner/shoreline"
+
+#ifdef FEATURE_PINGXELFLUT
+#define PINGXELFLUT_INTERFACE_DEFAULT "lo"
+#endif
 
 static char* default_description = REPO_URL;
 
@@ -88,6 +95,9 @@ void show_usage(char* binary) {
 		"Use -f ? to list available frontends and options\n");
 	fprintf(stderr, "  -t <fontfile>                    Enable fancy text rendering using TTF, OTF or CFF font from <fontfile>\n");
 	fprintf(stderr, "  -d <description>                 Set description text to be displayed in upper left corner (default %s)\n", REPO_URL);
+#ifdef FEATURE_PINGXELFLUT
+	fprintf(stderr, "  -i <interface>                   [pingxelflut] Set the interface to listen for pingxelflut packets (default %s)\n", PINGXELFLUT_INTERFACE_DEFAULT);
+#endif
 	fprintf(stderr, "  -?                               Show this help\n");
 }
 
@@ -177,6 +187,10 @@ int main(int argc, char** argv) {
 	struct sockaddr_storage* inaddr;
 	struct addrinfo* addr_list;
 	struct net* net;
+#ifdef FEATURE_PINGXELFLUT
+	struct net_pingxelflut* net_pingxelflut;
+	char* pingxelflut_interface = PINGXELFLUT_INTERFACE_DEFAULT;
+#endif
 	struct llist fronts;
 	struct llist_entry* cursor, *next;
 	struct frontend* front;
@@ -204,7 +218,7 @@ int main(int argc, char** argv) {
 	struct timespec before, after;
 	long long time_delta;
 
-	while((opt = getopt(argc, argv, "p:b:w:h:r:s:l:f:t:d:?")) != -1) {
+	while((opt = getopt(argc, argv, "p:b:w:h:r:s:l:f:t:d:i:?")) != -1) {
 		switch(opt) {
 			case('p'):
 				port = optarg;
@@ -285,6 +299,20 @@ int main(int argc, char** argv) {
 					err = -ENOMEM;
 					goto fail;
 				}
+				break;
+			case('i'):
+#ifdef FEATURE_PINGXELFLUT
+				pingxelflut_interface = strdup(optarg);
+				if(!pingxelflut_interface) {
+					fprintf(stderr, "Failed to allocate memory for pingxelflut interface string\n");
+					err = -ENOMEM;
+					goto fail;
+				}
+#else
+				fprintf(stderr, "Shoreline was compiled without pingxelflut support!\n");
+				err = -EINVAL;
+				goto fail;
+#endif
 				break;
 			default:
 				show_usage(argv[0]);
@@ -381,6 +409,19 @@ int main(int argc, char** argv) {
 		goto fail_addrinfo;
 	}
 
+#ifdef FEATURE_PINGXELFLUT
+	if((err = net_pingxelflut_alloc(&net_pingxelflut, fb, &fb_list, &fb->size))) {
+		fprintf(stderr, "Failed to initialize pingxelflut network: %d => %s\n", err, strerror(-err));
+		goto fail_net_pingxelflut;
+	}
+	net_pingxelflut->interface = pingxelflut_interface;
+
+	if((err = net_pingxelflut_listen(net_pingxelflut))) {
+		fprintf(stderr, "Failed to start listening on pingxelflut network: %d => %s\n", err, strerror(-err));
+		goto fail_net_pingxelflut;
+	}
+#endif
+
 	nice(-20);
 	while(!do_exit) {
 		clock_gettime(CLOCK_MONOTONIC, &before);
@@ -437,8 +478,15 @@ int main(int argc, char** argv) {
 		}
 	}
 	net_shutdown(net);
+#ifdef FEATURE_PINGXELFLUT
+	net_pingxelflut_shutdown(net_pingxelflut);
+#endif
 
 	fb_free_all(&fb_list);
+#ifdef FEATURE_PINGXELFLUT
+fail_net_pingxelflut:
+	net_pingxelflut_free(net_pingxelflut);
+#endif
 fail_addrinfo:
 	freeaddrinfo(addr_list);
 fail_net:
