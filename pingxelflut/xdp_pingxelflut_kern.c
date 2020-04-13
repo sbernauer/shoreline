@@ -16,6 +16,7 @@ struct {
     __type(key, u32);
     __type(value, u32);
     __uint(max_entries, WIDTH * HEIGHT);
+    // TODO Make dependent on PINGXELFLUT_COMPAT_NO_MMAP
     //__uint(map_flags, BPF_F_MMAPABLE); // Needed to mmap this map later on in userspace
 } pingxelflut_framebuffer SEC(".maps");
 
