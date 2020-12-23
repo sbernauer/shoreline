@@ -16,11 +16,11 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#define WIDTH 1280
-#define HEIGHT 720
+#define WIDTH 1024
+#define HEIGHT 768
 
 struct framebuffer {
-	int data[WIDTH * HEIGHT];
+	__u32 data[WIDTH * HEIGHT];
 };
 
 static int ifindex;
@@ -142,12 +142,12 @@ int main(int argc, char **argv)
 	int size = sizeof(struct framebuffer);
 	size = getpagesize();
 	printf("size: %u\n", size);
-	// struct framebuffer* framebuffer;
-	// framebuffer = mmap(NULL, size, PROT_READ, MAP_SHARED, map_fd, 0);
-	// if (framebuffer == MAP_FAILED) {
-	// 	printf("[ERROR] mmap failed: %d\n", errno);
-	// 	return -1;
-	// }
+	struct framebuffer* framebuffer;
+	framebuffer = mmap(NULL, size, PROT_READ, MAP_SHARED, map_fd, 0);
+	if (framebuffer == MAP_FAILED) {
+		printf("[ERROR] mmap failed: %d\n", errno);
+		return -1;
+	}
 
 	for(int i = 0; i < 500000; i++) {
 		int index = 0;
@@ -157,9 +157,11 @@ int main(int argc, char **argv)
 			index = i;
 			bpf_map_lookup_elem(map_fd, &index, &value);
 			printf("value via bpf_map_lookup_elem for %u: %0x\n", i, value);
-			// printf("value via mmap for %u:                %0x\n", i, framebuffer->data[i]);
+			printf("value via mmap for %u:                %0x\n", i, framebuffer->data[i * 2]);
 		}
-		// for (int i = WIDTH * HEIGHT - 10; i < WIDTH * HEIGHT; i++) {
+
+		// Causes segfault
+		// for (int i = WIDTH * HEIGHT - 10; i < WIDTH * HEIGHT - 1; i++) {
 		// 	printf("value via mmap for %u:                %0x\n", i, framebuffer->data[i]);
 		// }
 		printf("\n");

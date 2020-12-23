@@ -17,7 +17,7 @@ struct {
     __type(value, u32);
     __uint(max_entries, WIDTH * HEIGHT);
     // TODO Make dependent on PINGXELFLUT_COMPAT_NO_MMAP
-    //__uint(map_flags, BPF_F_MMAPABLE); // Needed to mmap this map later on in userspace
+    __uint(map_flags, BPF_F_MMAPABLE); // Needed to mmap this map later on in userspace
 } pingxelflut_framebuffer SEC(".maps");
 
 SEC("xdp_pingxelflut")
@@ -69,7 +69,7 @@ int xdp_prog_pingxelflut(struct xdp_md *ctx)
         bpf_map_update_elem(&pingxelflut_framebuffer, &index, &rgba, BPF_ANY);
     }
 
-    return XDP_PASS; // Change it to XDP_DROP to get maximum performance
+    return XDP_DROP; // Change it to XDP_DROP to get maximum performance
 }
 
 char _license[] SEC("license") = "GPL";

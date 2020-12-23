@@ -1,6 +1,9 @@
 #!/bin/bash
 
-# pacman -S make clang llvm base-devel flex bison bc python
+# pacman -S make clang llvm base-devel flex bison bc python libbpf numactl libvncserver
+# sudo apt-get install libcap-dev
+# sudo ip link set dev eno4 xdp off
+# sudo cat /sys/kernel/debug/tracing/trace_pipe
 
 num_cpus=$(nproc --all)
 
@@ -17,7 +20,7 @@ else
 	make -j $num_cpus headers_install
 
 	cd samples/bpf
-	make
+	make -j $num_cpus
 
 	# Build helper tools
 	## Build bpftool
@@ -35,3 +38,6 @@ sed -i -e 's/always-y += xdp1_kern.o/always-y += xdp_pingxelflut_kern.o\nalways-
 ## Build pingxelflut kernel and userspace programs
 cd linux/samples/bpf
 make -j $num_cpus
+cd ../../..
+
+cp linux/samples/bpf/xdp_pingxelflut_kern.o ..

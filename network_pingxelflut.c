@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <sys/mman.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <net/if.h>
@@ -104,6 +105,9 @@ static void* net_pingxelflut_listen_thread(void* args) {
 		goto fail;
 	}
 	net->map_fd = bpf_map__fd(net->map);
+	// TODO Use new bpf_map__max_entries function defined in kernel 5.10 https://github.com/torvalds/linux/commit/1bdb6c9a1c43fdf9b83b2331dfc6229bd2e71d9b
+	// __u32 max_entries = bpf_map__max_entries(net->map);
+	__u32 max_entries = bpf_map__def(net->map)->max_entries;
 
 	__u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
 	if (bpf_set_link_xdp_fd(net->ifindex, net->prog_fd, xdp_flags) < 0) {
@@ -116,25 +120,28 @@ static void* net_pingxelflut_listen_thread(void* args) {
 		goto fail;
 	}
 
-	printf("Pingxelflut listening on interface %s\n", net->interface);
+	printf("Size fb: %dx%d\n", net->fb->size.width, net->fb->size.height);
+	if (net->fb->size.width * net->fb->size.height != max_entries) {
+		printf("ERROR: Sizes of fb (%dx%d) and framebuffer_in_bpf_map (%d) differ\n", net->fb->size.width, net->fb->size.height, max_entries);
+		goto fail;
+	}
 
-	// TODO check, that size of fb and bpf map are the same
 	int map_fd = net->map_fd;
 	struct fb* fb = net->fb;
-	__u32 value;
+	int fb_size = fb->size.width * fb->size.height * 4;
+
+	__u32* fb_in_bpf_map;
+	fb_in_bpf_map = mmap(NULL, fb_size, PROT_READ, MAP_SHARED, map_fd, 0);
+	if (fb_in_bpf_map == MAP_FAILED) {
+		printf("ERROR: mmap bpf map failed: %d\n", errno);
+		return NULL;
+	}
+
+	printf("Pingxelflut listening on interface %s\n", net->interface);
+
 	while (!do_exit) {
-
-		printf("LOOP :)\n");
-
-#ifdef FEATURE_PINGXELFLUT_COMPAT_NO_MMAP
-		for(__u32 i = 0; i < net->fb_size->width * net->fb_size->height; i++) {
-			bpf_map_lookup_elem(map_fd, &i, &value);
-			fb->pixels[i].abgr = value;
-		}
-#else
-		// TODO memcp from mmap
-#endif
-		sleep(1);
+		memcpy(fb->pixels, fb_in_bpf_map, fb_size);
+		sleep(1 / 60);
 	}
 fail:
 	return NULL;
