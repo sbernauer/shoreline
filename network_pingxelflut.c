@@ -120,7 +120,6 @@ static void* net_pingxelflut_listen_thread(void* args) {
 		goto fail;
 	}
 
-	printf("Size fb: %dx%d\n", net->fb->size.width, net->fb->size.height);
 	if (net->fb->size.width * net->fb->size.height != max_entries) {
 		printf("ERROR: Sizes of fb (%dx%d) and framebuffer_in_bpf_map (%d) differ\n", net->fb->size.width, net->fb->size.height, max_entries);
 		goto fail;
@@ -137,7 +136,7 @@ static void* net_pingxelflut_listen_thread(void* args) {
 		return NULL;
 	}
 
-	printf("Pingxelflut listening on interface %s\n", net->interface);
+	printf("Listening for Pingxelflut packets on interface %s (%dx%d pixels)\n", net->interface, net->fb->size.width, net->fb->size.height);
 
 	while (!do_exit) {
 		memcpy(fb->pixels, fb_in_bpf_map, fb_size);

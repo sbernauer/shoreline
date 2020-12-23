@@ -96,6 +96,7 @@ void show_usage(char* binary) {
 	fprintf(stderr, "  -t <fontfile>                    Enable fancy text rendering using TTF, OTF or CFF font from <fontfile>\n");
 	fprintf(stderr, "  -d <description>                 Set description text to be displayed in upper left corner (default %s)\n", REPO_URL);
 #ifdef FEATURE_PINGXELFLUT
+	fprintf(stderr, "  -6                               [pingxelflut] Enable pingxelflut support, listening for arbitrary IPv6 packets\n");
 	fprintf(stderr, "  -i <interface>                   [pingxelflut] Set the interface to listen for pingxelflut packets (default %s)\n", PINGXELFLUT_INTERFACE_DEFAULT);
 #endif
 	fprintf(stderr, "  -?                               Show this help\n");
@@ -188,6 +189,7 @@ int main(int argc, char** argv) {
 	struct addrinfo* addr_list;
 	struct net* net;
 #ifdef FEATURE_PINGXELFLUT
+	bool pingxelflut_enabled = false;
 	struct net_pingxelflut* net_pingxelflut;
 	char* pingxelflut_interface = PINGXELFLUT_INTERFACE_DEFAULT;
 #endif
@@ -218,7 +220,7 @@ int main(int argc, char** argv) {
 	struct timespec before, after;
 	long long time_delta;
 
-	while((opt = getopt(argc, argv, "p:b:w:h:r:s:l:f:t:d:i:?")) != -1) {
+	while((opt = getopt(argc, argv, "p:b:w:h:r:s:l:f:t:d:6i:?")) != -1) {
 		switch(opt) {
 			case('p'):
 				port = optarg;
@@ -299,6 +301,15 @@ int main(int argc, char** argv) {
 					err = -ENOMEM;
 					goto fail;
 				}
+				break;
+			case('6'):
+#ifdef FEATURE_PINGXELFLUT
+				pingxelflut_enabled = true;
+#else
+				fprintf(stderr, "Shoreline was compiled without pingxelflut support!\n");
+				err = -EINVAL;
+				goto fail;
+#endif
 				break;
 			case('i'):
 #ifdef FEATURE_PINGXELFLUT
@@ -410,15 +421,17 @@ int main(int argc, char** argv) {
 	}
 
 #ifdef FEATURE_PINGXELFLUT
-	if((err = net_pingxelflut_alloc(&net_pingxelflut, fb, &fb_list, &fb->size))) {
-		fprintf(stderr, "Failed to initialize pingxelflut network: %d => %s\n", err, strerror(-err));
-		goto fail_net_pingxelflut;
-	}
-	net_pingxelflut->interface = pingxelflut_interface;
+	if (pingxelflut_enabled) {
+		if((err = net_pingxelflut_alloc(&net_pingxelflut, fb, &fb_list, &fb->size))) {
+			fprintf(stderr, "Failed to initialize pingxelflut network: %d => %s\n", err, strerror(-err));
+			goto fail_net_pingxelflut;
+		}
+		net_pingxelflut->interface = pingxelflut_interface;
 
-	if((err = net_pingxelflut_listen(net_pingxelflut))) {
-		fprintf(stderr, "Failed to start listening on pingxelflut network: %d => %s\n", err, strerror(-err));
-		goto fail_net_pingxelflut;
+		if((err = net_pingxelflut_listen(net_pingxelflut))) {
+			fprintf(stderr, "Failed to start listening on pingxelflut network: %d => %s\n", err, strerror(-err));
+			goto fail_net_pingxelflut;
+		}
 	}
 #endif
 
@@ -479,13 +492,17 @@ int main(int argc, char** argv) {
 	}
 	net_shutdown(net);
 #ifdef FEATURE_PINGXELFLUT
-	net_pingxelflut_shutdown(net_pingxelflut);
+	if (pingxelflut_enabled) {
+		net_pingxelflut_shutdown(net_pingxelflut);
+	}
 #endif
 
 	fb_free_all(&fb_list);
 #ifdef FEATURE_PINGXELFLUT
 fail_net_pingxelflut:
-	net_pingxelflut_free(net_pingxelflut);
+	if (pingxelflut_enabled) {
+		net_pingxelflut_free(net_pingxelflut);
+	}
 #endif
 fail_addrinfo:
 	freeaddrinfo(addr_list);

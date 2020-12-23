@@ -69,7 +69,7 @@ int xdp_prog_pingxelflut(struct xdp_md *ctx)
         bpf_map_update_elem(&pingxelflut_framebuffer, &index, &rgba, BPF_ANY);
     }
 
-    return XDP_DROP; // Change it to XDP_DROP to get maximum performance
+    return XDP_PASS; // Change it to XDP_DROP to get maximum performance
 }
 
 char _license[] SEC("license") = "GPL";
