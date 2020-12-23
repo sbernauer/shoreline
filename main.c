@@ -96,7 +96,7 @@ void show_usage(char* binary) {
 	fprintf(stderr, "  -t <fontfile>                    Enable fancy text rendering using TTF, OTF or CFF font from <fontfile>\n");
 	fprintf(stderr, "  -d <description>                 Set description text to be displayed in upper left corner (default %s)\n", REPO_URL);
 #ifdef FEATURE_PINGXELFLUT
-	fprintf(stderr, "  -6                               [pingxelflut] Enable pingxelflut support, listening for arbitrary IPv6 packets\n");
+	fprintf(stderr, "  -6                               [pingxelflut] Enable pingxelflut support, listening for arbitrary IPv6 packets. Requires kernel >= 5.8 and must be run as root\n");
 	fprintf(stderr, "  -i <interface>                   [pingxelflut] Set the interface to listen for pingxelflut packets (default %s)\n", PINGXELFLUT_INTERFACE_DEFAULT);
 #endif
 	fprintf(stderr, "  -?                               Show this help\n");

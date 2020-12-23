@@ -18,6 +18,7 @@ struct net_pingxelflut {
 	struct fb* fb;
 
 	struct fb_size* fb_size;
+	int fb_size_bytes;
 	pthread_mutex_t fb_lock;
 	struct llist* fb_list;
 
@@ -29,6 +30,7 @@ struct net_pingxelflut {
 	struct bpf_object *obj;
 	int prog_fd;
 	__u32 prog_id;
+	__u32* fb_in_bpf_map;
 
 	struct bpf_map *map;
 	int map_fd;

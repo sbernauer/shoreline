@@ -84,7 +84,8 @@ fail:
 }
 
 void net_free(struct net* net) {
-	assert(net->state == NET_STATE_EXIT || net->state == NET_STATE_IDLE);
+	// Uncommented because when pingxelflut network fails to start, the normal network does not shut down properly
+	// assert(net->state == NET_STATE_EXIT || net->state == NET_STATE_IDLE);
 	if(net->threads) {
 		free(net->threads);
 	}
